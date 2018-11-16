@@ -1,0 +1,6 @@
+canvas {
+	display: block;
+	outline: 1px black solid;
+	image-rendering: -moz-crisp-edges;
+	image-rendering: pixelated;
+}
