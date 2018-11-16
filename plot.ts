@@ -19,7 +19,7 @@ class Plot {
         this.canvas.height = yMax - yMin;
         this.canvas.id = "canvas";
         
-        this.gl = this.canvas.getContext("webgl", { antialias: false })!;
+        this.gl = this.canvas.getContext("webgl", { antialias: false, preserveDrawingBuffer: true })!;
         this.configureGl();
     }
 

@@ -1,17 +1,24 @@
 "use strict";
 function main() {
-    const plot = new Plot(0, 500, 0, 500);
-    document.body.appendChild(plot.canvas);
+    const drawPlot = new Plot(0, 100, 0, 100);
+    document.body.appendChild(drawPlot.canvas);
+    const complexPlot = new Plot(0, 100, 0, 100);
+    document.body.appendChild(complexPlot.canvas);
     let down = false;
-    plot.canvas.addEventListener("mousedown", function (event) {
+    drawPlot.canvas.addEventListener("mousedown", function (event) {
         down = true;
     });
-    plot.canvas.addEventListener("mouseup", function (event) {
+    drawPlot.canvas.addEventListener("mouseup", function (event) {
         down = false;
     });
-    plot.canvas.addEventListener("mousemove", function (event) {
+    drawPlot.canvas.addEventListener("mousemove", function (event) {
         if (down) {
-            plot.addPoint(event.clientX, plot.canvas.height - event.clientY);
+            const x = event.clientX;
+            const y = drawPlot.canvas.height - event.clientY;
+            drawPlot.addPoint(x, y);
+            const c1 = Complex.fromRectangular(x, y);
+            const c2 = c1.add(c1);
+            complexPlot.addPoint(c2.re, c2.im);
         }
     });
 }
