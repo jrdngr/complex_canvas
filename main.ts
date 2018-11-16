@@ -1,8 +1,8 @@
 function main() {
-    const drawPlot = new Plot(0, 100, 0, 100);
+    const drawPlot = new Plot(0, 500, 0, 500);
     document.body.appendChild(drawPlot.canvas);
 
-    const complexPlot = new Plot(0, 100, 0, 100);
+    const complexPlot = new Plot(0, 500, 0, 500);
     document.body.appendChild(complexPlot.canvas);
 
     let down = false;
@@ -17,8 +17,8 @@ function main() {
 
     drawPlot.canvas.addEventListener("mousemove", function(event) {
         if (down) {
-            const x = event.clientX;
-            const y = drawPlot.canvas.height - event.clientY;
+            const x = event.pageX;
+            const y = drawPlot.canvas.height - event.pageY;
 
             drawPlot.addPoint(x, y);
 
