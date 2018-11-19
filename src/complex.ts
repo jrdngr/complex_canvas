@@ -1,4 +1,6 @@
-class Complex {
+export type ComplexFunction = (c: Complex) => Complex;
+
+export class Complex {
     readonly re: number;
     readonly im: number;
     readonly r: number;

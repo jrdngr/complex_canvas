@@ -1,22 +1,51 @@
-class Plot {
-    public readonly canvas: HTMLCanvasElement;
-
+export class PlotBounds {
     readonly xMin: number;
     readonly xMax: number;
     readonly yMin: number;
     readonly yMax: number;
 
-    readonly gl: WebGLRenderingContext;
-
+    readonly xRange: number;
+    readonly yRange: number;
+    
     constructor(xMin: number, xMax: number, yMin: number, yMax: number) {
         this.xMin = xMin;
         this.xMax = xMax;
         this.yMin = yMin;
         this.yMax = yMax;
 
+        this.xRange = xMax - xMin;
+        this.yRange = yMax - yMin;
+    }
+
+    static fromBounds(xMin: number, xMax: number, yMin: number, yMax: number): PlotBounds {
+        return new PlotBounds(xMin, xMax, yMin, yMax);
+    }
+
+    static fromZero(xMax: number, yMax: number): PlotBounds {
+        return new PlotBounds(0, xMax, 0, yMax);
+    }
+
+    static symmetric(x: number, y: number): PlotBounds {
+        return new PlotBounds(-x, x, -y, y);
+    }
+
+    public transform(transformFunction: (boundsInput: PlotBounds) => PlotBounds): PlotBounds {
+        return transformFunction(this);
+    }
+}
+
+export class Plot {
+    public readonly bounds: PlotBounds;
+
+    public readonly canvas: HTMLCanvasElement;
+    public readonly gl: WebGLRenderingContext;
+
+    constructor(bounds: PlotBounds, canvasWidth: number, canvasHeight: number) {
+        this.bounds = bounds;
+
         this.canvas = document.createElement("canvas");
-        this.canvas.width = xMax - xMin;
-        this.canvas.height = yMax - yMin;
+        this.canvas.width = canvasWidth;
+        this.canvas.height = canvasHeight;
         this.canvas.id = "canvas";
         
         this.gl = this.canvas.getContext("webgl", { antialias: false, preserveDrawingBuffer: true })!;
@@ -25,13 +54,19 @@ class Plot {
 
     public addPoint(x: number, y: number) {
         if (this.isPointOnPlot(x, y)) {
-            this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array([x, y]), this.gl.STATIC_DRAW);
+            const canvasNormalizedX = (x - this.bounds.xMin) / this.bounds.xRange;
+            const canvasNormalizedY = (y - this.bounds.yMin) / this.bounds.yRange;
+
+            const canvasX = canvasNormalizedX * this.canvas.width;
+            const canvasY = canvasNormalizedY * this.canvas.height;
+
+            this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array([canvasX, canvasY]), this.gl.STATIC_DRAW);
             this.gl.drawArrays(this.gl.POINTS, 0, 1);
         }
     }
 
-    private isPointOnPlot(x: number, y: number) : boolean {
-        return x >= this.xMin && x <= this.xMax && y >= this.yMin && y <= this.yMax;
+    public isPointOnPlot(x: number, y: number) : boolean {
+        return x >= this.bounds.xMin && x <= this.bounds.xMax && y >= this.bounds.yMin && y <= this.bounds.yMax;
     }
 
     private configureGl() {
