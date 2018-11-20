@@ -1,4 +1,4 @@
-import { Plot, PlotBounds } from "./plot";
+import { DrawPlot, ShaderPlot, PlotBounds } from "./plot";
 import { Complex, ComplexFunction } from "./complex";
 
 const bounds = PlotBounds.fromBounds(-10, 10, -10, 10);
@@ -7,39 +7,15 @@ const canvasSize = 500;
 const f: ComplexFunction = c => c.exponent(2);
 
 export function main() {
-    const drawPlot = new Plot(bounds, canvasSize, canvasSize);
+    const drawPlot = new DrawPlot(bounds, canvasSize, canvasSize);
     document.body.appendChild(drawPlot.canvas);
 
     const complexBounds = calculateComplexBounds(f, bounds);
 
-    const complexPlot = new Plot(complexBounds, canvasSize, canvasSize);
+    const complexPlot = new ShaderPlot(complexBounds, canvasSize, canvasSize);
     document.body.appendChild(complexPlot.canvas);
 
-    let down = false;
-
-    drawPlot.canvas.addEventListener("mousedown", function(event) { 
-      down = true;
-    });
-    
-    drawPlot.canvas.addEventListener("mouseup", function(event) {
-        down = false;
-    });
-
-    drawPlot.canvas.addEventListener("mousemove", function(event) {
-        if (down) {
-            const canvasX = event.pageX;
-            const canvasY = drawPlot.canvas.height - event.pageY;
-
-            const x = bounds.xMin + (canvasX / drawPlot.canvas.width) * bounds.xRange;
-            const y = bounds.yMin + (canvasY / drawPlot.canvas.height) * bounds.yRange;
-
-            drawPlot.addPoint(x, y);
-
-            const c = f(Complex.fromRectangular(x, y));
-
-            complexPlot.addPoint(c.re, c.im);
-        }
-    });
+    drawPlot.subscribe(complexPlot);
 }
 
 function calculateComplexBounds(complexFunction: ComplexFunction, bounds: PlotBounds, pointsToSample: number = 100): PlotBounds {
@@ -64,8 +40,6 @@ function calculateComplexBounds(complexFunction: ComplexFunction, bounds: PlotBo
         }
     }
 
-    console.log(PlotBounds.fromBounds(xMin, xMax, yMin, yMax));
-    
     return PlotBounds.fromBounds(xMin, xMax, yMin, yMax);
 }
 

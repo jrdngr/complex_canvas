@@ -1,3 +1,7 @@
+export interface CanvasUpdater {
+    update(canvas: HTMLCanvasElement): void;
+}
+
 export class PlotBounds {
     readonly xMin: number;
     readonly xMax: number;
@@ -34,7 +38,71 @@ export class PlotBounds {
     }
 }
 
-export class Plot {
+export class DrawPlot {
+    public readonly bounds: PlotBounds;
+    public readonly canvas: HTMLCanvasElement;
+    
+    private readonly context: CanvasRenderingContext2D;
+
+    private isMouseDown: boolean = false;
+    private updateSubscriptions: CanvasUpdater[] = [];
+    
+    constructor(bounds: PlotBounds, canvasWidth: number, canvasHeight: number) {
+        this.bounds = bounds;
+
+        this.canvas = document.createElement("canvas");
+        this.canvas.width = canvasWidth;
+        this.canvas.height = canvasHeight;
+
+        this.context = this.canvas.getContext("2d")!;
+
+        const self = this;
+
+        this.canvas.addEventListener("mousedown", function(event) { 
+            self.onMouseDown(event.pageX, event.pageY);
+        });
+          
+        this.canvas.addEventListener("mouseup", function(event) {
+            self.onMouseUp(event.pageX, event.pageY);
+        });
+    
+        this.canvas.addEventListener("mousemove", function(event) {
+            self.onMouseMove(event.pageX, event.pageY);
+        });
+
+        this.canvas.addEventListener("mouseleave", function(event) {
+            self.onMouseUp(event.pageX, event.pageY);
+        });
+    }
+
+    public subscribe(updater: CanvasUpdater) {
+        this.updateSubscriptions.push(updater);
+    }
+
+    private onMouseDown(x: number, y: number) {
+        this.isMouseDown = true;
+        this.context.beginPath();
+        this.context.moveTo(x, y);
+    }
+
+    private onMouseUp(x: number, y: number) {
+        this.onMouseMove(x, y);
+        this.context.closePath();
+        this.isMouseDown = false;
+    }
+    
+    private onMouseMove(x: number, y: number) {
+        if (this.isMouseDown) {
+            this.context.lineTo(x, y);
+            this.context.stroke();
+            this.updateSubscriptions.forEach(sub => {
+                sub.update(this.canvas);
+            });
+        }
+    }
+}
+
+export class ShaderPlot implements CanvasUpdater {
     public readonly bounds: PlotBounds;
 
     public readonly canvas: HTMLCanvasElement;
@@ -46,37 +114,19 @@ export class Plot {
         this.canvas = document.createElement("canvas");
         this.canvas.width = canvasWidth;
         this.canvas.height = canvasHeight;
-        this.canvas.id = "canvas";
         
         this.gl = this.canvas.getContext("webgl", { antialias: false, preserveDrawingBuffer: true })!;
         this.configureGl();
     }
 
-    public addPoint(x: number, y: number) {
-        if (this.isPointOnPlot(x, y)) {
-            const canvasNormalizedX = (x - this.bounds.xMin) / this.bounds.xRange;
-            const canvasNormalizedY = (y - this.bounds.yMin) / this.bounds.yRange;
-
-            const canvasX = canvasNormalizedX * this.canvas.width;
-            const canvasY = canvasNormalizedY * this.canvas.height;
-
-            this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array([canvasX, canvasY]), this.gl.STATIC_DRAW);
-            this.gl.drawArrays(this.gl.POINTS, 0, 1);
-        }
-    }
-
-    public isPointOnPlot(x: number, y: number) : boolean {
-        return x >= this.bounds.xMin && x <= this.bounds.xMax && y >= this.bounds.yMin && y <= this.bounds.yMax;
-    }
-
     private configureGl() {
         const vertexShader = this.createShader(vertexShaderText, this.gl.VERTEX_SHADER);
-        const fragmetShader = this.createShader(fragmentShaderText, this.gl.FRAGMENT_SHADER);
+        const fragmentShader = this.createShader(fragmentShaderText, this.gl.FRAGMENT_SHADER);
 
         const program = this.gl.createProgram()!;
         
         this.gl.attachShader(program, vertexShader);
-        this.gl.attachShader(program, fragmetShader);
+        this.gl.attachShader(program, fragmentShader);
         
         this.gl.linkProgram(program);
         this.gl.useProgram(program);
@@ -103,6 +153,18 @@ export class Plot {
         this.gl.compileShader(shader);
         return shader;
     }
+
+    public update(canvas: HTMLCanvasElement) {
+        let texture = this.gl.createTexture();
+
+        this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
+        this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, canvas);
+
+        var fb = this.gl.createFramebuffer();
+        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, fb);
+     
+        this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, texture, 0);
+    }
 }
 
 const vertexShaderText = `
@@ -110,17 +172,7 @@ attribute vec2 a_position;
 uniform vec2 u_resolution;
 
 void main() {
-  // convert the rectangle from pixels to 0.0 to 1.0
-    vec2 zeroToOne = a_position / u_resolution;
-
-    // convert from 0 -> 1 to 0 -> 2
-    vec2 zeroToTwo = zeroToOne * 2.0;
-
-    // convert from 0 -> 2 to -1 -> +1 (clipspace)
-    vec2 clipSpace = zeroToTwo - 1.0;
-
-    gl_PointSize = 1.0;
-    gl_Position = vec4(clipSpace * vec2(1, 1), 0, 1);
+    gl_Position = vec4(a_position, 0, 1);
 }`;
 
 const fragmentShaderText = `
