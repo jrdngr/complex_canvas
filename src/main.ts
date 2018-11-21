@@ -1,4 +1,4 @@
-import { DrawPlot, ShaderPlot, PlotBounds } from "./plot";
+import { DrawPlot, PlotBounds } from "./plot";
 import { Complex, ComplexFunction } from "./complex";
 
 const bounds = PlotBounds.fromBounds(-10, 10, -10, 10);
@@ -12,10 +12,54 @@ export function main() {
 
     const complexBounds = calculateComplexBounds(f, bounds);
 
-    const complexPlot = new ShaderPlot(complexBounds, canvasSize, canvasSize);
+    const complexPlot = new DrawPlot(complexBounds, canvasSize, canvasSize);
     document.body.appendChild(complexPlot.canvas);
 
-    drawPlot.subscribe(complexPlot);
+    let down = false;
+
+    drawPlot.canvas.addEventListener("pointerdown", function(event) { 
+        down = true;
+        const [x, y] = getCoordinates(event);
+        drawPlot.beginPath(x, y);
+
+        const c = f(Complex.fromRectangular(x, y));
+        complexPlot.beginPath(c.re, c.im);
+    });
+    
+    drawPlot.canvas.addEventListener("pointerup", function(event) {
+        down = false;
+        const [x, y] = getCoordinates(event);
+        drawPlot.endPath(x, y);
+
+        const c = f(Complex.fromRectangular(x, y));
+        complexPlot.endPath(c.re, c.im);
+    });
+
+    drawPlot.canvas.addEventListener("pointerleave", function(event) {
+        down = false;
+        const [x, y] = getCoordinates(event);
+        drawPlot.endPath(x, y);
+
+        const c = f(Complex.fromRectangular(x, y));
+        complexPlot.endPath(c.re, c.im);
+    });
+  
+    drawPlot.canvas.addEventListener("pointermove", function(event) {
+        if (down) {
+            const [x, y] = getCoordinates(event);
+            drawPlot.addPoint(x, y);
+
+            const c = f(Complex.fromRectangular(x, y));
+            complexPlot.addPoint(c.re, c.im);
+        }
+    });
+}
+
+function getCoordinates(event: PointerEvent): [number, number] {
+    const x = bounds.xMin + (event.pageX / canvasSize) * bounds.xRange;
+    const y = bounds.yMin + (event.pageY / canvasSize) * bounds.yRange;
+
+    return [x, y];
 }
 
 function calculateComplexBounds(complexFunction: ComplexFunction, bounds: PlotBounds, pointsToSample: number = 100): PlotBounds {
